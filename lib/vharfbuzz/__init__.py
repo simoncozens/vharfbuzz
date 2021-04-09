@@ -71,7 +71,7 @@ class Vharfbuzz:
         parameters: A dictionary containing parameters to pass to Harfbuzz.
             Relevant keys include ``script``, ``direction``, ``language``
             (these three are normally guessed from the string contents),
-            ``features`` and ``variations``.
+            ``features``, ``variations`` and ``shaper``.
         onchange: An optional function with three parameters. See below.
 
     Additionally, if an `onchange` function is provided, this will be called
@@ -97,6 +97,10 @@ class Vharfbuzz:
             buf.direction = parameters["direction"]
         if "language" in parameters and parameters["language"]:
             buf.language = parameters["language"]
+        shapers = self.shapers
+        if "shaper" in parameters and parameters["shaper"]:
+            shapers = [parameters["shaper"]]
+
         features = parameters.get("features")
         if "variations" in parameters:
             self.hbfont.set_variations(parameters["variations"])
@@ -104,7 +108,7 @@ class Vharfbuzz:
         if onchange:
             f = self.make_message_handling_function(buf, onchange)
             buf.set_message_func(f)
-        hb.shape(self.hbfont, buf, features, shapers=self.shapers)
+        hb.shape(self.hbfont, buf, features, shapers=shapers)
         self.stage = "GPOS"
         return buf
 
