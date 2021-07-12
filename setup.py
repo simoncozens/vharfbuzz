@@ -29,7 +29,7 @@ config = {
         "Development Status :: 4 - Beta"
 
     ],
-    'package_dir': {'':'Lib'},
+    'package_dir': {'':'lib'},
     'packages': ["vharfbuzz"]
 ,
 }
