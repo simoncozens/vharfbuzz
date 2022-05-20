@@ -2,7 +2,7 @@ Below are the most important changes from each release.
 A more detailed listing of changes is available in the closed issues of the Github issue tracker (https://github.com/simoncozens/vharfbuzz/issues) and in the git commit history.
 
 
-## Upcoming release: 0.1.3 (2022-May-??)
+## 0.1.3 (2022-May-20)
   - Replaced deprecated `draw_glyph()`. Now using `get_glyph_shape()` instead. (issue #4)
 
 
