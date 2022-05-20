@@ -180,7 +180,7 @@ class Vharfbuzz:
             buf.glyph_positions.append(pos)
         return buf
 
-    def setup_svg_draw_funcs(self):
+    def setup_svg_draw_funcs(self, container):
         if self.drawfuncs:
             return
 
@@ -202,11 +202,11 @@ class Vharfbuzz:
             c["output_string"] = c["output_string"] + "Z"
 
         self.drawfuncs = hb.DrawFuncs()
-        self.drawfuncs.set_move_to_func(move_to)
-        self.drawfuncs.set_line_to_func(line_to)
-        self.drawfuncs.set_cubic_to_func(cubic_to)
-        self.drawfuncs.set_quadratic_to_func(quadratic_to)
-        self.drawfuncs.set_close_path_func(close_path)
+        self.drawfuncs.set_move_to_func(move_to, container)
+        self.drawfuncs.set_line_to_func(line_to, container)
+        self.drawfuncs.set_cubic_to_func(cubic_to, container)
+        self.drawfuncs.set_quadratic_to_func(quadratic_to, container)
+        self.drawfuncs.set_close_path_func(close_path, container)
 
     def glyph_to_svg_path(self, gid):
         """Converts a glyph to SVG
@@ -221,9 +221,9 @@ class Vharfbuzz:
                 "glyph_to_svg_path requires uharfbuzz with draw function support"
             )
 
-        self.setup_svg_draw_funcs()
         container = {"output_string": ""}
-        self.drawfuncs.draw_glyph(self.hbfont, gid, container)
+        self.setup_svg_draw_funcs(container)
+        self.drawfuncs.get_glyph_shape(self.hbfont, gid)
         return container["output_string"]
 
     def buf_to_svg(self, buf):
