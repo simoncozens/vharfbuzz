@@ -250,23 +250,18 @@ class Vharfbuzz:
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
             glyph_path = self.glyph_to_svg_path(info.codepoint)
             dx, dy = pos.position[0], pos.position[1]
-            p = (
-                f'<path d="{glyph_path}" '
-                + f' transform="translate({x_cursor+dx}, {y_cursor+dy})"/>\n'
-            )
-            svg += p
+            p = f'<path d="{glyph_path}" transform="translate({x_cursor+dx}, {y_cursor+dy})"/>'
+            paths.append(p)
             x_cursor += pos.position[2]
             y_cursor += pos.position[3]
 
-        svg = (
-            (
-                f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {x_cursor} {fullheight}"'
-                + ' transform="matrix(1 0 0 -1 0 0)">\n'
-            )
-            + svg
-            + "</svg>\n"
-        )
-        return svg
+        svg = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {x_cursor} {fullheight}" transform="matrix(1 0 0 -1 0 0)">',
+            *paths,
+            "</svg>",
+            "",
+        ]
+        return "\n".join(svg)
 
 
 # v = Vharfbuzz("/Users/simon/Library/Fonts/SourceSansPro-Regular.otf")
