@@ -5,6 +5,7 @@ __email__ = "simon@simon-cozens.org"
 __version__ = '0.1.0'
 
 import uharfbuzz as hb
+from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
 import re
 
@@ -182,47 +183,6 @@ class Vharfbuzz:
             buf.glyph_positions.append(pos)
         return buf
 
-    def setup_svg_draw_funcs(self, buffer_list):
-        def move_to(x, y, buffer_list):
-            buffer_list.append(f"M{x},{y}")
-
-        def line_to(x, y, buffer_list):
-            buffer_list.append(f"L{x},{y}")
-
-        def cubic_to(c1x, c1y, c2x, c2y, x, y, buffer_list):
-            buffer_list.append(f"C{c1x},{c1y} {c2x},{c2y} {x},{y}")
-
-        def quadratic_to(c1x, c1y, x, y, buffer_list):
-            buffer_list.append(f"Q{c1x},{c1y} {x},{y}")
-
-        def close_path(buffer_list):
-            buffer_list.append("Z")
-
-        self.drawfuncs = hb.DrawFuncs()
-        self.drawfuncs.set_move_to_func(move_to, buffer_list)
-        self.drawfuncs.set_line_to_func(line_to, buffer_list)
-        self.drawfuncs.set_cubic_to_func(cubic_to, buffer_list)
-        self.drawfuncs.set_quadratic_to_func(quadratic_to, buffer_list)
-        self.drawfuncs.set_close_path_func(close_path, buffer_list)
-
-    def glyph_to_svg_path(self, gid):
-        """Converts a glyph to SVG
-
-        Args:
-            gid (int): Glyph ID to render
-
-        Returns: An SVG string containing a path to represent the glyph.
-        """
-        if not hasattr(hb, "DrawFuncs"):
-            raise ValueError(
-                "glyph_to_svg_path requires uharfbuzz with draw function support"
-            )
-
-        buffer_list: list[str] = []
-        self.setup_svg_draw_funcs(buffer_list)
-        self.drawfuncs.get_glyph_shape(self.hbfont, gid)
-        return "".join(buffer_list)
-
     def buf_to_svg(self, buf):
         """Converts a buffer to SVG
 
@@ -248,7 +208,9 @@ class Vharfbuzz:
         y_cursor = -descender
 
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            glyph_path = self.glyph_to_svg_path(info.codepoint)
+            pen = SVGPathPen(None)
+            self.hbfont.draw_glyph_with_pen(info.codepoint, pen)
+            glyph_path = pen.getCommands()
             dx, dy = pos.position[0], pos.position[1]
             p = (
                 f'<path d="{glyph_path}" '
