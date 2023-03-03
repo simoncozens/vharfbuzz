@@ -182,7 +182,7 @@ class Vharfbuzz:
             buf.glyph_positions.append(pos)
         return buf
 
-    def setup_svg_draw_funcs(self, buffer_list):
+    def setup_svg_draw_funcs(self):
         def move_to(x, y, buffer_list):
             buffer_list.append(f"M{x},{y}")
 
@@ -199,11 +199,11 @@ class Vharfbuzz:
             buffer_list.append("Z")
 
         self.drawfuncs = hb.DrawFuncs()
-        self.drawfuncs.set_move_to_func(move_to, buffer_list)
-        self.drawfuncs.set_line_to_func(line_to, buffer_list)
-        self.drawfuncs.set_cubic_to_func(cubic_to, buffer_list)
-        self.drawfuncs.set_quadratic_to_func(quadratic_to, buffer_list)
-        self.drawfuncs.set_close_path_func(close_path, buffer_list)
+        self.drawfuncs.set_move_to_func(move_to)
+        self.drawfuncs.set_line_to_func(line_to)
+        self.drawfuncs.set_cubic_to_func(cubic_to)
+        self.drawfuncs.set_quadratic_to_func(quadratic_to)
+        self.drawfuncs.set_close_path_func(close_path)
 
     def glyph_to_svg_path(self, gid):
         """Converts a glyph to SVG
@@ -219,8 +219,8 @@ class Vharfbuzz:
             )
 
         buffer_list: list[str] = []
-        self.setup_svg_draw_funcs(buffer_list)
-        self.drawfuncs.get_glyph_shape(self.hbfont, gid)
+        self.setup_svg_draw_funcs()
+        self.hbfont.draw_glyph(gid, self.drawfuncs, buffer_list)
         return "".join(buffer_list)
 
     def buf_to_svg(self, buf):
