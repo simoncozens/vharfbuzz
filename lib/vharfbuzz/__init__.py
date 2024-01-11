@@ -26,8 +26,6 @@ class Vharfbuzz:
 
     def __init__(self, filename):
         self.filename = filename
-        with open(self.filename, "rb") as fontfile:
-            self.fontdata = fontfile.read()
         self.ttfont = TTFont(filename)
         self.glyphOrder = self.ttfont.getGlyphOrder()
         self.prepare_shaper()
@@ -35,7 +33,8 @@ class Vharfbuzz:
         self.drawfuncs = None
 
     def prepare_shaper(self):
-        face = hb.Face(self.fontdata)
+        blob = hb.Blob.from_file_path(self.filename)
+        face = hb.Face(blob)
         font = hb.Font(face)
         upem = face.upem
         font.scale = (upem, upem)
