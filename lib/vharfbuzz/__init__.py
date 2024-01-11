@@ -38,11 +38,7 @@ class Vharfbuzz:
         if self._hbfont is None:
             blob = hb.Blob.from_file_path(self.filename)
             face = hb.Face(blob)
-            font = hb.Font(face)
-            upem = face.upem
-            font.scale = (upem, upem)
-            hb.ot_font_set_funcs(font)
-            self._hbfont = font
+            self._hbfont = hb.Font(face)
         return self._hbfont
 
     def make_message_handling_function(self, buf, onchange):
