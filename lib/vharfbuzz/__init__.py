@@ -28,18 +28,22 @@ class Vharfbuzz:
         self.filename = filename
         self.ttfont = TTFont(filename)
         self.glyphOrder = self.ttfont.getGlyphOrder()
-        self.prepare_shaper()
         self.shapers = None
         self.drawfuncs = None
+        self._hbfont = None
+        self._saved_variations = None
 
-    def prepare_shaper(self):
-        blob = hb.Blob.from_file_path(self.filename)
-        face = hb.Face(blob)
-        font = hb.Font(face)
-        upem = face.upem
-        font.scale = (upem, upem)
-        hb.ot_font_set_funcs(font)
-        self.hbfont = font
+    @property
+    def hbfont(self):
+        if self._hbfont is None:
+            blob = hb.Blob.from_file_path(self.filename)
+            face = hb.Face(blob)
+            font = hb.Font(face)
+            upem = face.upem
+            font.scale = (upem, upem)
+            hb.ot_font_set_funcs(font)
+            self._hbfont = font
+        return self._hbfont
 
     def make_message_handling_function(self, buf, onchange):
         self.history = {"GSUB": [], "GPOS": []}
@@ -88,7 +92,7 @@ class Vharfbuzz:
     """
         if not parameters:
             parameters = {}
-        self.prepare_shaper()
+        hbfont = self.hbfont
         buf = hb.Buffer()
         buf.add_str(text)
         buf.guess_segment_properties()
@@ -104,12 +108,16 @@ class Vharfbuzz:
 
         features = parameters.get("features")
         if "variations" in parameters:
-            self.hbfont.set_variations(parameters["variations"])
+            self._saved_variations = hbfont.get_var_coords_design()
+            hbfont.set_variations(parameters["variations"])
+        elif self._saved_variations:
+            hbfont.set_var_coords_design(self._saved_variations)
+            self._saved_variations = None
         self.stage = "GSUB"
         if onchange:
             f = self.make_message_handling_function(buf, onchange)
             buf.set_message_func(f)
-        hb.shape(self.hbfont, buf, features, shapers=shapers)
+        hb.shape(hbfont, buf, features, shapers=shapers)
         self.stage = "GPOS"
         return buf
 
