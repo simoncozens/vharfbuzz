@@ -5,7 +5,6 @@ __email__ = "simon@simon-cozens.org"
 __version__ = '0.1.0'
 
 import uharfbuzz as hb
-from fontTools.ttLib import TTFont
 import re
 
 class FakeBuffer():
@@ -26,7 +25,6 @@ class Vharfbuzz:
 
     def __init__(self, filename):
         self.filename = filename
-        self.ttfont = TTFont(filename)
         self.shapers = None
         self.drawfuncs = None
         self._hbfont = None
@@ -239,17 +237,10 @@ class Vharfbuzz:
         x_cursor = 0
         paths = []
         svg = ""
-        if "hhea" in self.ttfont:
-            ascender = self.ttfont["hhea"].ascender + 500
-            descender = self.ttfont["hhea"].descender - 500
-            fullheight = ascender - descender
-        elif "OS/2":
-            ascender = self.ttfont["OS/2"].sTypoAscender + 500
-            descender = self.ttfont["OS/2"].sTypoDescender - 500
-            fullheight = ascender - descender
-        else:
-            fullheight = 1500
-            descender = 500
+        extents = self.hbfont.get_font_extents("ltr")
+        ascender = extents.ascender + 500
+        descender = extents.descender - 500
+        fullheight = ascender - descender
         y_cursor = -descender
 
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
