@@ -27,7 +27,6 @@ class Vharfbuzz:
     def __init__(self, filename):
         self.filename = filename
         self.ttfont = TTFont(filename)
-        self.glyphOrder = self.ttfont.getGlyphOrder()
         self.shapers = None
         self.drawfuncs = None
         self._hbfont = None
@@ -119,9 +118,10 @@ class Vharfbuzz:
 
     def _copy_buf(self, buf):
         # Or at least the bits we care about
+        hbfont = self.hbfont
         outs = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            l = [self.glyphOrder[info.codepoint], info.cluster]
+            l = [hbfont.glyph_to_string(info.codepoint), info.cluster]
             if self.stage == "GPOS":
                 l.append(pos.position)
             else:
@@ -141,9 +141,10 @@ class Vharfbuzz:
         Returns: A serialized string.
 
        """
+        hbfont = self.hbfont
         outs = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            glyphname = self.glyphOrder[info.codepoint]
+            glyphname = hbfont.glyph_to_string(info.codepoint)
             if glyphsonly:
                 outs.append(glyphname)
                 continue
@@ -168,6 +169,7 @@ class Vharfbuzz:
 
         Returns a ``FakeBuffer`` object.
         """
+        hbfont = self.hbfont
         buf = FakeBuffer()
         buf.glyph_infos = []
         buf.glyph_positions = []
@@ -177,7 +179,7 @@ class Vharfbuzz:
                 raise ValueError("Couldn't parse glyph %s in %s" % (item,s))
             groups = m.groups()
             info = FakeItem()
-            info.codepoint = self.ttfont.getGlyphID(groups[0])
+            info.codepoint = hbfont.glyph_from_string(groups[0])
             info.cluster = int(groups[1])
             buf.glyph_infos.append(info)
             pos = FakeItem()
