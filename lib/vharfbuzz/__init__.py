@@ -5,7 +5,6 @@ __email__ = "simon@simon-cozens.org"
 __version__ = '0.1.0'
 
 import uharfbuzz as hb
-from fontTools.ttLib import TTFont
 import re
 
 class FakeBuffer():
@@ -26,21 +25,18 @@ class Vharfbuzz:
 
     def __init__(self, filename):
         self.filename = filename
-        with open(self.filename, "rb") as fontfile:
-            self.fontdata = fontfile.read()
-        self.ttfont = TTFont(filename)
-        self.glyphOrder = self.ttfont.getGlyphOrder()
-        self.prepare_shaper()
         self.shapers = None
         self.drawfuncs = None
+        self._hbfont = None
+        self._saved_variations = None
 
-    def prepare_shaper(self):
-        face = hb.Face(self.fontdata)
-        font = hb.Font(face)
-        upem = face.upem
-        font.scale = (upem, upem)
-        hb.ot_font_set_funcs(font)
-        self.hbfont = font
+    @property
+    def hbfont(self):
+        if self._hbfont is None:
+            blob = hb.Blob.from_file_path(self.filename)
+            face = hb.Face(blob)
+            self._hbfont = hb.Font(face)
+        return self._hbfont
 
     def make_message_handling_function(self, buf, onchange):
         self.history = {"GSUB": [], "GPOS": []}
@@ -89,7 +85,7 @@ class Vharfbuzz:
     """
         if not parameters:
             parameters = {}
-        self.prepare_shaper()
+        hbfont = self.hbfont
         buf = hb.Buffer()
         buf.add_str(text)
         buf.guess_segment_properties()
@@ -105,20 +101,25 @@ class Vharfbuzz:
 
         features = parameters.get("features")
         if "variations" in parameters:
-            self.hbfont.set_variations(parameters["variations"])
+            self._saved_variations = hbfont.get_var_coords_design()
+            hbfont.set_variations(parameters["variations"])
+        elif self._saved_variations:
+            hbfont.set_var_coords_design(self._saved_variations)
+            self._saved_variations = None
         self.stage = "GSUB"
         if onchange:
             f = self.make_message_handling_function(buf, onchange)
             buf.set_message_func(f)
-        hb.shape(self.hbfont, buf, features, shapers=shapers)
+        hb.shape(hbfont, buf, features, shapers=shapers)
         self.stage = "GPOS"
         return buf
 
     def _copy_buf(self, buf):
         # Or at least the bits we care about
+        hbfont = self.hbfont
         outs = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            l = [self.glyphOrder[info.codepoint], info.cluster]
+            l = [hbfont.glyph_to_string(info.codepoint), info.cluster]
             if self.stage == "GPOS":
                 l.append(pos.position)
             else:
@@ -138,9 +139,10 @@ class Vharfbuzz:
         Returns: A serialized string.
 
        """
+        hbfont = self.hbfont
         outs = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            glyphname = self.glyphOrder[info.codepoint]
+            glyphname = hbfont.glyph_to_string(info.codepoint)
             if glyphsonly:
                 outs.append(glyphname)
                 continue
@@ -165,6 +167,7 @@ class Vharfbuzz:
 
         Returns a ``FakeBuffer`` object.
         """
+        hbfont = self.hbfont
         buf = FakeBuffer()
         buf.glyph_infos = []
         buf.glyph_positions = []
@@ -174,7 +177,7 @@ class Vharfbuzz:
                 raise ValueError("Couldn't parse glyph %s in %s" % (item,s))
             groups = m.groups()
             info = FakeItem()
-            info.codepoint = self.ttfont.getGlyphID(groups[0])
+            info.codepoint = hbfont.glyph_from_string(groups[0])
             info.cluster = int(groups[1])
             buf.glyph_infos.append(info)
             pos = FakeItem()
@@ -234,17 +237,10 @@ class Vharfbuzz:
         x_cursor = 0
         paths = []
         svg = ""
-        if "hhea" in self.ttfont:
-            ascender = self.ttfont["hhea"].ascender + 500
-            descender = self.ttfont["hhea"].descender - 500
-            fullheight = ascender - descender
-        elif "OS/2":
-            ascender = self.ttfont["OS/2"].sTypoAscender + 500
-            descender = self.ttfont["OS/2"].sTypoDescender - 500
-            fullheight = ascender - descender
-        else:
-            fullheight = 1500
-            descender = 500
+        extents = self.hbfont.get_font_extents("ltr")
+        ascender = extents.ascender + 500
+        descender = extents.descender - 500
+        fullheight = ascender - descender
         y_cursor = -descender
 
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
