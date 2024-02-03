@@ -2,16 +2,18 @@ from __future__ import annotations
 
 __author__ = """Simon Cozens"""
 __email__ = "simon@simon-cozens.org"
-__version__ = '0.1.0'
+__version__ = "0.1.0"
 
 import uharfbuzz as hb
 import re
 
-class FakeBuffer():
+
+class FakeBuffer:
     def __init__(self):
         pass
 
-class FakeItem():
+
+class FakeItem:
     def __init__(self):
         pass
 
@@ -62,27 +64,27 @@ class Vharfbuzz:
     def shape(self, text, parameters=None, onchange=None):
         """Shapes a text
 
-    This shapes a piece of text.
+        This shapes a piece of text.
 
-    Args:
-        text (str): A string of text
-        parameters: A dictionary containing parameters to pass to Harfbuzz.
-            Relevant keys include ``script``, ``direction``, ``language``
-            (these three are normally guessed from the string contents),
-            ``features``, ``variations`` and ``shaper``.
-        onchange: An optional function with three parameters. See below.
+        Args:
+            text (str): A string of text
+            parameters: A dictionary containing parameters to pass to Harfbuzz.
+                Relevant keys include ``script``, ``direction``, ``language``
+                (these three are normally guessed from the string contents),
+                ``features``, ``variations`` and ``shaper``.
+            onchange: An optional function with three parameters. See below.
 
-    Additionally, if an `onchange` function is provided, this will be called
-    every time the buffer changes *during* shaping, with the following arguments:
+        Additionally, if an `onchange` function is provided, this will be called
+        every time the buffer changes *during* shaping, with the following arguments:
 
-    - ``self``: the vharfbuzz object.
-    - ``stage``: either "GSUB" or "GPOS"
-    - ``lookupid``: the current lookup ID
-    - ``buffer``: a copy of the buffer as a list of lists (glyphname, cluster, position)
+        - ``self``: the vharfbuzz object.
+        - ``stage``: either "GSUB" or "GPOS"
+        - ``lookupid``: the current lookup ID
+        - ``buffer``: a copy of the buffer as a list of lists (glyphname, cluster, position)
 
-    Returns:
-        A uharfbuzz ``hb.Buffer`` object
-    """
+        Returns:
+            A uharfbuzz ``hb.Buffer`` object
+        """
         if not parameters:
             parameters = {}
         hbfont = self.hbfont
@@ -138,7 +140,7 @@ class Vharfbuzz:
 
         Returns: A serialized string.
 
-       """
+        """
         hbfont = self.hbfont
         outs = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
@@ -174,14 +176,16 @@ class Vharfbuzz:
         for item in s.split("|"):
             m = re.match(r"^(.*)=(\d+)(@(-?\d+),(-?\d+))?(\+(-?\d+))?$", item)
             if not m:
-                raise ValueError("Couldn't parse glyph %s in %s" % (item,s))
+                raise ValueError("Couldn't parse glyph %s in %s" % (item, s))
             groups = m.groups()
             info = FakeItem()
             info.codepoint = hbfont.glyph_from_string(groups[0])
             info.cluster = int(groups[1])
             buf.glyph_infos.append(info)
             pos = FakeItem()
-            pos.position = [ int(x or 0) for x in (groups[3], groups[4], groups[6], 0) ]  # Sorry, vertical scripts
+            pos.position = [
+                int(x or 0) for x in (groups[3], groups[4], groups[6], 0)
+            ]  # Sorry, vertical scripts
             buf.glyph_positions.append(pos)
         return buf
 
