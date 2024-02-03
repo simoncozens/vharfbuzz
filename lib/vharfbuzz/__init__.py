@@ -28,7 +28,7 @@ class Vharfbuzz:
     def __init__(self, filename):
         self.filename = filename
         self.shapers = None
-        self.drawfuncs = None
+        self._drawfuncs = None
         self._hbfont = None
         self._saved_variations = None
 
@@ -39,6 +39,33 @@ class Vharfbuzz:
             face = hb.Face(blob)
             self._hbfont = hb.Font(face)
         return self._hbfont
+
+    @property
+    def drawfuncs(self):
+        if self._drawfuncs is None:
+
+            def move_to(x, y, buffer_list):
+                buffer_list.append(f"M{x},{y}")
+
+            def line_to(x, y, buffer_list):
+                buffer_list.append(f"L{x},{y}")
+
+            def cubic_to(c1x, c1y, c2x, c2y, x, y, buffer_list):
+                buffer_list.append(f"C{c1x},{c1y} {c2x},{c2y} {x},{y}")
+
+            def quadratic_to(c1x, c1y, x, y, buffer_list):
+                buffer_list.append(f"Q{c1x},{c1y} {x},{y}")
+
+            def close_path(buffer_list):
+                buffer_list.append("Z")
+
+            self._drawfuncs = hb.DrawFuncs()
+            self._drawfuncs.set_move_to_func(move_to)
+            self._drawfuncs.set_line_to_func(line_to)
+            self._drawfuncs.set_cubic_to_func(cubic_to)
+            self._drawfuncs.set_quadratic_to_func(quadratic_to)
+            self._drawfuncs.set_close_path_func(close_path)
+        return self._drawfuncs
 
     def make_message_handling_function(self, buf, onchange):
         self.history = {"GSUB": [], "GPOS": []}
@@ -189,29 +216,6 @@ class Vharfbuzz:
             buf.glyph_positions.append(pos)
         return buf
 
-    def setup_svg_draw_funcs(self):
-        def move_to(x, y, buffer_list):
-            buffer_list.append(f"M{x},{y}")
-
-        def line_to(x, y, buffer_list):
-            buffer_list.append(f"L{x},{y}")
-
-        def cubic_to(c1x, c1y, c2x, c2y, x, y, buffer_list):
-            buffer_list.append(f"C{c1x},{c1y} {c2x},{c2y} {x},{y}")
-
-        def quadratic_to(c1x, c1y, x, y, buffer_list):
-            buffer_list.append(f"Q{c1x},{c1y} {x},{y}")
-
-        def close_path(buffer_list):
-            buffer_list.append("Z")
-
-        self.drawfuncs = hb.DrawFuncs()
-        self.drawfuncs.set_move_to_func(move_to)
-        self.drawfuncs.set_line_to_func(line_to)
-        self.drawfuncs.set_cubic_to_func(cubic_to)
-        self.drawfuncs.set_quadratic_to_func(quadratic_to)
-        self.drawfuncs.set_close_path_func(close_path)
-
     def glyph_to_svg_path(self, gid):
         """Converts a glyph to SVG
 
@@ -220,13 +224,8 @@ class Vharfbuzz:
 
         Returns: An SVG string containing a path to represent the glyph.
         """
-        if not hasattr(hb, "DrawFuncs"):
-            raise ValueError(
-                "glyph_to_svg_path requires uharfbuzz with draw function support"
-            )
 
         buffer_list: list[str] = []
-        self.setup_svg_draw_funcs()
         self.hbfont.draw_glyph(gid, self.drawfuncs, buffer_list)
         return "".join(buffer_list)
 
