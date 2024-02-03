@@ -229,6 +229,18 @@ class Vharfbuzz:
         self.hbfont.draw_glyph(gid, self.drawfuncs, buffer_list)
         return "".join(buffer_list)
 
+    def _glyph_to_svg_id(self, gid, defs):
+        id = f"g{gid}"
+        if id not in defs:
+            p = self.glyph_to_svg_path(gid)
+            defs[id] = f'<path id="{id}" d="{p}"/>'
+        return id
+
+    def _glyph_to_svg(self, gid, x, y, defs):
+        transform = f'transform="translate({x},{y})"'
+        id = self._glyph_to_svg_id(gid, defs)
+        return f'<use href="#{id}" {transform}/>'
+
     def buf_to_svg(self, buf):
         """Converts a buffer to SVG
 
@@ -246,16 +258,19 @@ class Vharfbuzz:
         fullheight = ascender - descender
         y_cursor = -descender
 
+        defs = {}
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            glyph_path = self.glyph_to_svg_path(info.codepoint)
             dx, dy = pos.position[0], pos.position[1]
-            p = f'<path d="{glyph_path}" transform="translate({x_cursor+dx}, {y_cursor+dy})"/>'
+            p = self._glyph_to_svg(info.codepoint, x_cursor + dx, y_cursor + dy, defs)
             paths.append(p)
             x_cursor += pos.position[2]
             y_cursor += pos.position[3]
 
         svg = [
             f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {x_cursor} {fullheight}" transform="matrix(1 0 0 -1 0 0)">',
+            "<defs>",
+            *defs.values(),
+            "</defs>",
             *paths,
             "</svg>",
             "",
