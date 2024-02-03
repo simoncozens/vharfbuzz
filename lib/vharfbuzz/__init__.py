@@ -260,11 +260,11 @@ class Vharfbuzz:
 
         defs = {}
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            dx, dy = pos.position[0], pos.position[1]
+            dx, dy = pos.x_offset, pos.y_offset
             p = self._glyph_to_svg(info.codepoint, x_cursor + dx, y_cursor + dy, defs)
             paths.append(p)
-            x_cursor += pos.position[2]
-            y_cursor += pos.position[3]
+            x_cursor += pos.x_advance
+            y_cursor += pos.y_advance
 
         svg = [
             f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {x_cursor} {fullheight}" transform="matrix(1 0 0 -1 0 0)">',
