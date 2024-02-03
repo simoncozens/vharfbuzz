@@ -31,6 +31,7 @@ class Vharfbuzz:
         self._drawfuncs = None
         self._hbfont = None
         self._saved_variations = None
+        self._palette = None
 
     @property
     def hbfont(self):
@@ -66,6 +67,17 @@ class Vharfbuzz:
             self._drawfuncs.set_quadratic_to_func(quadratic_to)
             self._drawfuncs.set_close_path_func(close_path)
         return self._drawfuncs
+
+    @property
+    def palette(self):
+        if self._palette is None:
+            if hasattr(hb, "ot_color_has_palettes") and hb.ot_color_has_palettes(
+                self.hbfont.face
+            ):
+                self._palette = hb.ot_color_palette_get_colors(self.hbfont.face, 0)
+            else:
+                self._palette = []
+        return self._palette
 
     def make_message_handling_function(self, buf, onchange):
         self.history = {"GSUB": [], "GPOS": []}
@@ -236,10 +248,30 @@ class Vharfbuzz:
             defs[id] = f'<path id="{id}" d="{p}"/>'
         return id
 
+    @staticmethod
+    def _to_svg_color(color):
+        svg_color = [f"{color.red}", f"{color.green}", f"{color.blue}"]
+        if color.alpha != 255:
+            svg_color.append(f"{color.alpha/255:.0%}")
+        return f"rgb({','.join(svg_color)})"
+
     def _glyph_to_svg(self, gid, x, y, defs):
         transform = f'transform="translate({x},{y})"'
-        id = self._glyph_to_svg_id(gid, defs)
-        return f'<use href="#{id}" {transform}/>'
+        svg = [f"<g {transform}>"]
+        if (
+            hasattr(hb, "ot_color_has_layers")
+            and hb.ot_color_has_layers(self.hbfont.face)
+            and (layers := hb.ot_color_glyph_get_layers(self.hbfont.face, gid))
+        ):
+            for layer in layers:
+                color = self._to_svg_color(self.palette[layer.color_index])
+                id = self._glyph_to_svg_id(layer.glyph, defs)
+                svg.append(f'<use href="#{id}" fill="{color}"/>')
+        else:
+            id = self._glyph_to_svg_id(gid, defs)
+            svg.append(f'<use href="#{id}"/>')
+        svg.append("</g>")
+        return "\n".join(svg)
 
     def buf_to_svg(self, buf):
         """Converts a buffer to SVG
