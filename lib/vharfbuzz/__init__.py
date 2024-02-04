@@ -2,16 +2,18 @@ from __future__ import annotations
 
 __author__ = """Simon Cozens"""
 __email__ = "simon@simon-cozens.org"
-__version__ = '0.1.0'
+__version__ = "0.1.0"
 
 import uharfbuzz as hb
 import re
 
-class FakeBuffer():
+
+class FakeBuffer:
     def __init__(self):
         pass
 
-class FakeItem():
+
+class FakeItem:
     def __init__(self):
         pass
 
@@ -26,9 +28,10 @@ class Vharfbuzz:
     def __init__(self, filename):
         self.filename = filename
         self.shapers = None
-        self.drawfuncs = None
+        self._drawfuncs = None
         self._hbfont = None
         self._saved_variations = None
+        self._palette = None
 
     @property
     def hbfont(self):
@@ -37,6 +40,44 @@ class Vharfbuzz:
             face = hb.Face(blob)
             self._hbfont = hb.Font(face)
         return self._hbfont
+
+    @property
+    def drawfuncs(self):
+        if self._drawfuncs is None:
+
+            def move_to(x, y, buffer_list):
+                buffer_list.append(f"M{x},{y}")
+
+            def line_to(x, y, buffer_list):
+                buffer_list.append(f"L{x},{y}")
+
+            def cubic_to(c1x, c1y, c2x, c2y, x, y, buffer_list):
+                buffer_list.append(f"C{c1x},{c1y} {c2x},{c2y} {x},{y}")
+
+            def quadratic_to(c1x, c1y, x, y, buffer_list):
+                buffer_list.append(f"Q{c1x},{c1y} {x},{y}")
+
+            def close_path(buffer_list):
+                buffer_list.append("Z")
+
+            self._drawfuncs = hb.DrawFuncs()
+            self._drawfuncs.set_move_to_func(move_to)
+            self._drawfuncs.set_line_to_func(line_to)
+            self._drawfuncs.set_cubic_to_func(cubic_to)
+            self._drawfuncs.set_quadratic_to_func(quadratic_to)
+            self._drawfuncs.set_close_path_func(close_path)
+        return self._drawfuncs
+
+    @property
+    def palette(self):
+        if self._palette is None:
+            if hasattr(hb, "ot_color_has_palettes") and hb.ot_color_has_palettes(
+                self.hbfont.face
+            ):
+                self._palette = hb.ot_color_palette_get_colors(self.hbfont.face, 0)
+            else:
+                self._palette = []
+        return self._palette
 
     def make_message_handling_function(self, buf, onchange):
         self.history = {"GSUB": [], "GPOS": []}
@@ -62,27 +103,27 @@ class Vharfbuzz:
     def shape(self, text, parameters=None, onchange=None):
         """Shapes a text
 
-    This shapes a piece of text.
+        This shapes a piece of text.
 
-    Args:
-        text (str): A string of text
-        parameters: A dictionary containing parameters to pass to Harfbuzz.
-            Relevant keys include ``script``, ``direction``, ``language``
-            (these three are normally guessed from the string contents),
-            ``features``, ``variations`` and ``shaper``.
-        onchange: An optional function with three parameters. See below.
+        Args:
+            text (str): A string of text
+            parameters: A dictionary containing parameters to pass to Harfbuzz.
+                Relevant keys include ``script``, ``direction``, ``language``
+                (these three are normally guessed from the string contents),
+                ``features``, ``variations`` and ``shaper``.
+            onchange: An optional function with three parameters. See below.
 
-    Additionally, if an `onchange` function is provided, this will be called
-    every time the buffer changes *during* shaping, with the following arguments:
+        Additionally, if an `onchange` function is provided, this will be called
+        every time the buffer changes *during* shaping, with the following arguments:
 
-    - ``self``: the vharfbuzz object.
-    - ``stage``: either "GSUB" or "GPOS"
-    - ``lookupid``: the current lookup ID
-    - ``buffer``: a copy of the buffer as a list of lists (glyphname, cluster, position)
+        - ``self``: the vharfbuzz object.
+        - ``stage``: either "GSUB" or "GPOS"
+        - ``lookupid``: the current lookup ID
+        - ``buffer``: a copy of the buffer as a list of lists (glyphname, cluster, position)
 
-    Returns:
-        A uharfbuzz ``hb.Buffer`` object
-    """
+        Returns:
+            A uharfbuzz ``hb.Buffer`` object
+        """
         if not parameters:
             parameters = {}
         hbfont = self.hbfont
@@ -138,7 +179,7 @@ class Vharfbuzz:
 
         Returns: A serialized string.
 
-       """
+        """
         hbfont = self.hbfont
         outs = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
@@ -174,39 +215,18 @@ class Vharfbuzz:
         for item in s.split("|"):
             m = re.match(r"^(.*)=(\d+)(@(-?\d+),(-?\d+))?(\+(-?\d+))?$", item)
             if not m:
-                raise ValueError("Couldn't parse glyph %s in %s" % (item,s))
+                raise ValueError("Couldn't parse glyph %s in %s" % (item, s))
             groups = m.groups()
             info = FakeItem()
             info.codepoint = hbfont.glyph_from_string(groups[0])
             info.cluster = int(groups[1])
             buf.glyph_infos.append(info)
             pos = FakeItem()
-            pos.position = [ int(x or 0) for x in (groups[3], groups[4], groups[6], 0) ]  # Sorry, vertical scripts
+            pos.position = [
+                int(x or 0) for x in (groups[3], groups[4], groups[6], 0)
+            ]  # Sorry, vertical scripts
             buf.glyph_positions.append(pos)
         return buf
-
-    def setup_svg_draw_funcs(self):
-        def move_to(x, y, buffer_list):
-            buffer_list.append(f"M{x},{y}")
-
-        def line_to(x, y, buffer_list):
-            buffer_list.append(f"L{x},{y}")
-
-        def cubic_to(c1x, c1y, c2x, c2y, x, y, buffer_list):
-            buffer_list.append(f"C{c1x},{c1y} {c2x},{c2y} {x},{y}")
-
-        def quadratic_to(c1x, c1y, x, y, buffer_list):
-            buffer_list.append(f"Q{c1x},{c1y} {x},{y}")
-
-        def close_path(buffer_list):
-            buffer_list.append("Z")
-
-        self.drawfuncs = hb.DrawFuncs()
-        self.drawfuncs.set_move_to_func(move_to)
-        self.drawfuncs.set_line_to_func(line_to)
-        self.drawfuncs.set_cubic_to_func(cubic_to)
-        self.drawfuncs.set_quadratic_to_func(quadratic_to)
-        self.drawfuncs.set_close_path_func(close_path)
 
     def glyph_to_svg_path(self, gid):
         """Converts a glyph to SVG
@@ -216,15 +236,42 @@ class Vharfbuzz:
 
         Returns: An SVG string containing a path to represent the glyph.
         """
-        if not hasattr(hb, "DrawFuncs"):
-            raise ValueError(
-                "glyph_to_svg_path requires uharfbuzz with draw function support"
-            )
 
         buffer_list: list[str] = []
-        self.setup_svg_draw_funcs()
         self.hbfont.draw_glyph(gid, self.drawfuncs, buffer_list)
         return "".join(buffer_list)
+
+    def _glyph_to_svg_id(self, gid, defs):
+        id = f"g{gid}"
+        if id not in defs:
+            p = self.glyph_to_svg_path(gid)
+            defs[id] = f'<path id="{id}" d="{p}"/>'
+        return id
+
+    @staticmethod
+    def _to_svg_color(color):
+        svg_color = [f"{color.red}", f"{color.green}", f"{color.blue}"]
+        if color.alpha != 255:
+            svg_color.append(f"{color.alpha/255:.0%}")
+        return f"rgb({','.join(svg_color)})"
+
+    def _glyph_to_svg(self, gid, x, y, defs):
+        transform = f'transform="translate({x},{y})"'
+        svg = [f"<g {transform}>"]
+        if (
+            hasattr(hb, "ot_color_has_layers")
+            and hb.ot_color_has_layers(self.hbfont.face)
+            and (layers := hb.ot_color_glyph_get_layers(self.hbfont.face, gid))
+        ):
+            for layer in layers:
+                color = self._to_svg_color(self.palette[layer.color_index])
+                id = self._glyph_to_svg_id(layer.glyph, defs)
+                svg.append(f'<use href="#{id}" fill="{color}"/>')
+        else:
+            id = self._glyph_to_svg_id(gid, defs)
+            svg.append(f'<use href="#{id}"/>')
+        svg.append("</g>")
+        return "\n".join(svg)
 
     def buf_to_svg(self, buf):
         """Converts a buffer to SVG
@@ -243,16 +290,19 @@ class Vharfbuzz:
         fullheight = ascender - descender
         y_cursor = -descender
 
+        defs = {}
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            glyph_path = self.glyph_to_svg_path(info.codepoint)
-            dx, dy = pos.position[0], pos.position[1]
-            p = f'<path d="{glyph_path}" transform="translate({x_cursor+dx}, {y_cursor+dy})"/>'
+            dx, dy = pos.x_offset, pos.y_offset
+            p = self._glyph_to_svg(info.codepoint, x_cursor + dx, y_cursor + dy, defs)
             paths.append(p)
-            x_cursor += pos.position[2]
-            y_cursor += pos.position[3]
+            x_cursor += pos.x_advance
+            y_cursor += pos.y_advance
 
         svg = [
             f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {x_cursor} {fullheight}" transform="matrix(1 0 0 -1 0 0)">',
+            "<defs>",
+            *defs.values(),
+            "</defs>",
             *paths,
             "</svg>",
             "",
