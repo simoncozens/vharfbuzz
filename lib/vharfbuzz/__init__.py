@@ -281,25 +281,38 @@ class Vharfbuzz:
 
         Returns: An SVG string containing a rendering of the buffer
         """
-        x_cursor = 0
-        paths = []
-        svg = ""
-        extents = self.hbfont.get_font_extents("ltr")
-        ascender = extents.ascender + 500
-        descender = extents.descender - 500
-        fullheight = ascender - descender
-        y_cursor = -descender
-
         defs = {}
+        paths = []
+
+        hbfont = self.hbfont
+
+        font_extents = hbfont.get_font_extents("ltr")
+        y_max = font_extents.ascender
+        y_min = font_extents.descender
+        x_min = x_max = 0
+
+        x_cursor = 0
+        y_cursor = 0
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
             dx, dy = pos.x_offset, pos.y_offset
             p = self._glyph_to_svg(info.codepoint, x_cursor + dx, y_cursor + dy, defs)
             paths.append(p)
+
+            if extents := hbfont.get_glyph_extents(info.codepoint):
+                min_x = x_cursor + dx + extents.x_bearing
+                min_y = y_cursor + dy - extents.y_bearing
+                max_x = min_x + max(extents.width, pos.x_advance)
+                max_y = -min_y + max(extents.height, pos.y_advance)
+                x_min = min(x_min, min_x)
+                y_min = min(y_min, min_y)
+                x_max = max(x_max, max_x)
+                y_max = max(y_max, max_y)
+
             x_cursor += pos.x_advance
             y_cursor += pos.y_advance
 
         svg = [
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {x_cursor} {fullheight}" transform="matrix(1 0 0 -1 0 0)">',
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x_min} {y_min} {x_max - x_min} {y_max - y_min}" transform="matrix(1 0 0 -1 0 0)">',
             "<defs>",
             *defs.values(),
             "</defs>",
