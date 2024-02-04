@@ -222,9 +222,15 @@ class Vharfbuzz:
             info.cluster = int(groups[1])
             buf.glyph_infos.append(info)
             pos = FakeItem()
-            pos.position = [
-                int(x or 0) for x in (groups[3], groups[4], groups[6], 0)
-            ]  # Sorry, vertical scripts
+            pos.x_offset, pos.y_offset, pos.x_advance, pos.y_advance = pos.position = [
+                int(x or 0)
+                for x in (
+                    groups[3],
+                    groups[4],
+                    groups[6],
+                    0,  # Sorry, vertical scripts
+                )
+            ]
             buf.glyph_positions.append(pos)
         return buf
 
