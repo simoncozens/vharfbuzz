@@ -305,10 +305,12 @@ class Vharfbuzz:
             paths.append(p)
 
             if extents := hbfont.get_glyph_extents(info.codepoint):
-                min_x = x_cursor + dx + extents.x_bearing
-                min_y = y_cursor + dy - extents.y_bearing
-                max_x = min_x + max(extents.width, pos.x_advance)
-                max_y = -min_y + max(extents.height, pos.y_advance)
+                cur_x = x_cursor + dx
+                cur_y = y_cursor + dy
+                min_x = cur_x + min(extents.x_bearing, 0)
+                min_y = cur_y + min(extents.height + extents.y_bearing, pos.y_advance)
+                max_x = cur_x + max(extents.width + extents.x_bearing, pos.x_advance)
+                max_y = cur_y + max(extents.y_bearing, 0)
                 x_min = min(x_min, min_x)
                 y_min = min(y_min, min_y)
                 x_max = max(x_max, max_x)
