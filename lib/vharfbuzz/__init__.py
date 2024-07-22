@@ -270,9 +270,12 @@ class Vharfbuzz:
             and (layers := hb.ot_color_glyph_get_layers(self.hbfont.face, gid))
         ):
             for layer in layers:
-                color = self._to_svg_color(self.palette[layer.color_index])
                 id = self._glyph_to_svg_id(layer.glyph, defs)
-                svg.append(f'<use href="#{id}" fill="{color}"/>')
+                if layer.color_index != 0xFFFF:
+                    color = self._to_svg_color(self.palette[layer.color_index])
+                    svg.append(f'<use href="#{id}" fill="{color}"/>')
+                else:
+                    svg.append(f'<use href="#{id}"/>')
         else:
             id = self._glyph_to_svg_id(gid, defs)
             svg.append(f'<use href="#{id}"/>')
