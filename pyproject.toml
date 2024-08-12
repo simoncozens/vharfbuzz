@@ -39,3 +39,10 @@ git_describe_command = "git describe --match 'v*'"
 
 [tool.pytest.ini_options]
 filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.black]
+exclude = '''
+(
+    _version.py
+)
+'''
