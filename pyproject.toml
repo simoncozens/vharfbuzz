@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vharfbuzz"
+description = "A user-friendlier way to use Harfbuzz in Python"
+license = {file = "LICENSE"}
+readme = "README.md"
+dynamic = ["version"]
+authors = [
+  { name = "Simon Cozens", email = "simon@simon-cozens.org" }
+]
+classifiers = [
+  'Environment :: Console',
+  'Topic :: Text Processing :: Fonts',
+]
+dependencies = [
+  'uharfbuzz>=0.34.0',
+  'fontTools'
+]
+
+[project.urls]
+Repository = "https://github.com/simoncozens/vharfbuzz"
+Issues = "https://github.com/simoncozens/vharfbuzz/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+]
+
+[tool.setuptools.packages.find]
+where = ["Lib"]
+
+[tool.setuptools_scm]
+write_to = "Lib/vharfbuzz/_version.py"
+git_describe_command = "git describe --match 'v*'"
+
+[tool.pytest.ini_options]
+filterwarnings = ["ignore::DeprecationWarning"]
