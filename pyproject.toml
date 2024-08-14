@@ -16,8 +16,7 @@ classifiers = [
   'Topic :: Text Processing :: Fonts',
 ]
 dependencies = [
-  'uharfbuzz>=0.34.0',
-  'fontTools'
+  'uharfbuzz>=0.37.3'
 ]
 
 [project.urls]
