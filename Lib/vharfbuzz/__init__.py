@@ -183,7 +183,8 @@ class Vharfbuzz:
         hbfont = self.hbfont
         outs = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            glyphname = hbfont.glyph_to_string(info.codepoint)
+            if (glyphname := getattr(info, "name", None)) is None:
+                glyphname = hbfont.glyph_to_string(info.codepoint)
             if glyphsonly:
                 outs.append(glyphname)
                 continue
@@ -219,6 +220,9 @@ class Vharfbuzz:
             groups = m.groups()
             info = FakeItem()
             info.codepoint = hbfont.glyph_from_string(groups[0])
+            if info.codepoint is None:
+                info.codepoint = 0
+                info.name = groups[0]
             info.cluster = int(groups[1])
             buf.glyph_infos.append(info)
             pos = FakeItem()
